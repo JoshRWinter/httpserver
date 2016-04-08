@@ -1,0 +1,6 @@
+root
+httpserver.o
+httpserver.exe
+resource.res
+template.html
+serve.o
