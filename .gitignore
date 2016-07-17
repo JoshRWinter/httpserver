@@ -4,3 +4,5 @@ httpserver.exe
 resource.res
 template.html
 serve.o
+project.sh
+
