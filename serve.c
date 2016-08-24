@@ -1,16 +1,22 @@
 #include "httpserver.h"
 
-char *getcurrenttime(char *currenttime,HANDLE mutex){
-	OpenMutex(SYNCHRONIZE,FALSE,NULL); // localtime() is NOT thread safe, must lock with mutexes
+char *getcurrenttime(char *currenttime,pthread_mutex_t mutex){
+	pthread_mutex_lock(&mutex); // localtime() is NOT thread safe, must lock with mutexes
 	time_t rawtime;
 	struct tm *timeinfo;
 	rawtime=time(NULL);
 	timeinfo=localtime(&rawtime);
 	sprintf(currenttime,"%02d:%02d:%02d %d-%02d-%02d",timeinfo->tm_hour,timeinfo->tm_min,timeinfo->tm_sec,timeinfo->tm_year+1900,timeinfo->tm_mon+1,timeinfo->tm_mday);
-	ReleaseMutex(mutex);
+	pthread_mutex_unlock(&mutex);
 	return currenttime;
 }
-FILE *openresource(int sock,HANDLE mutex,char *resource,char **code,char *connectto){ // resolve resource name
+int is_directory(const char *path) {
+   struct stat stat;
+   if (stat(path, &stat)!=0)
+       return 0;
+   return S_ISDIR(stat.st_mode);
+}
+FILE *openresource(int sock,pthread_mutex_t mutex,char *resource,char **code,char *connectto){ // resolve resource name
 	int i;
 	FILE *res;
 	int rlen;
@@ -23,8 +29,8 @@ FILE *openresource(int sock,HANDLE mutex,char *resource,char **code,char *connec
 	for(i=0;i<rlen;++i)if(resource[i]=='/')resource[i]='\\'; // windows slashes
 	
 	if(!strcmp(resource,""))strcpy(resource,"index.html");
-	else if(GetFileAttributes(resource)==FILE_ATTRIBUTE_DIRECTORY){ // is 'resource' a directory?
-		strcat(resource,"\\index.html");
+	else if(is_directory(resource)){ // is 'resource' a directory?
+		strcat(resource,"/index.html");
 	}
 	
 	res=fopen(resource,"rb");
@@ -35,8 +41,8 @@ FILE *openresource(int sock,HANDLE mutex,char *resource,char **code,char *connec
 		res=fopen(resource,"rb");
 		if(!res){
 			printf("[%s - %s] Error: can't find '404page.html' -- disconnected\n",connectto,getcurrenttime(currenttime,mutex));
-			closesocket(sock);
-			ExitThread(0);
+			close(sock);
+			pthread_cancel(pthread_self());
 		}
 	}
 	else{
@@ -72,7 +78,7 @@ void getcontenttype(char *resource,char **contenttype){
 	else if(!strcmp(ext,"mp4"))*contenttype="video/mp4";
 	else *contenttype="application/octet-stream";
 }
-DWORD WINAPI serve(void *p){
+serve serve(void *p){
 	char httprequest[HTTPREQSIZE],*contenttype,*path,resource[MAX_PATH],*proto,*code,*connectto,currenttime[26],response[4096],resdata[4096],connecteraddress[47];
 	u_long mode=0;
 	int reslen,result,i,sock;
@@ -80,7 +86,7 @@ DWORD WINAPI serve(void *p){
 	unsigned bytestr,responselen;
 	FILE *res;
 	int initialtime;
-	HANDLE mutex;
+	pthread_mutex_t mutex;
 	int *abortthread;
 	
 	struct threaddata *td=p;
@@ -103,9 +109,9 @@ DWORD WINAPI serve(void *p){
 		memset(httprequest,0,HTTPREQSIZE);
 		bytestr=0;
 		mode=1;
-		if(SOCKET_ERROR==ioctlsocket(sock,FIONBIO,&mode))printf("last error: %d",WSAGetLastError());
+		if(SOCKET_ERROR==ioctl(sock,FIONBIO,&mode))printf("last error: %d",errno);
 		while(!doublenewline(httprequest,bytestr)){
-			Sleep(2);
+			uleep(2000);
 			if(time(NULL)-initialtime>KEEPALIVE_TIMEOUT||closeconnections(mutex,abortthread)){
 				printf("[%s - %s] Keepalive timeout\n",connectto,getcurrenttime(currenttime,mutex));
 				stop=1;
@@ -114,15 +120,15 @@ DWORD WINAPI serve(void *p){
 			result=recv(sock,httprequest+bytestr,HTTPREQSIZE-bytestr,0);
 			if(result>0)bytestr+=result;
 			else if(result==0){
-				printf("[%s - %s] Network error receiving http request: %d\n",connectto,getcurrenttime(currenttime,mutex),WSAGetLastError());
-				closesocket(sock);
-				return 0;
+				printf("[%s - %s] Network error receiving http request: %d\n",connectto,getcurrenttime(currenttime,mutex),errno);
+				close(sock);
+				return;
 			}
 		}
 		if(stop)break;
 		initialtime=time(NULL);
 		mode=0;
-		if(SOCKET_ERROR==ioctlsocket(sock,FIONBIO,&mode))printf("last error: %d",WSAGetLastError());
+		if(SOCKET_ERROR==ioctl(sock,FIONBIO,&mode))printf("last error: %d",errno);
 		
 		path=httprequest+5; // separate out path (resource);
 		for(i=0;;++i){
@@ -152,9 +158,9 @@ DWORD WINAPI serve(void *p){
 		while(bytestr!=responselen){
 			result=send(sock,response+bytestr,responselen-bytestr,0);
 			if(result<0){
-				printf("[%s - %s] Network error serving length of %s: %d",connectto,getcurrenttime(currenttime,mutex),res,WSAGetLastError());
-				closesocket(sock);
-				return 0;
+				printf("[%s - %s] Network error serving length of %s: %d",connectto,getcurrenttime(currenttime,mutex),res,errno);
+				close(sock);
+				return;
 			}
 			bytestr+=result;
 		}
@@ -167,11 +173,11 @@ DWORD WINAPI serve(void *p){
 				result=send(sock,resdata+bytestr,bytesread-bytestr,0);
 				if(result<0){
 					int errorcode;
-					if((errorcode=WSAGetLastError())!=WSAEWOULDBLOCK){
+					if(errno!=EWOULDBLOCK){
 						fclose(res);
 						printf("[%s - %s] Network error serving %s: %d\n",connectto,getcurrenttime(currenttime,mutex),res,errorcode);
-						closesocket(sock);
-						return 0;
+						close(sock);
+						return;
 					}
 				}
 				else bytestr+=result;
@@ -181,6 +187,6 @@ DWORD WINAPI serve(void *p){
 		printf("[%s - %s] Served %s (%s) (%u)\n",connectto,getcurrenttime(currenttime,mutex),resource,contenttype,reslen);
 	}
 	printf("[%s - %s] Disconnected\n",connectto,getcurrenttime(currenttime,mutex));
-	closesocket(sock);
-	return 0;
+	close(sock);
+	return;
 }
