@@ -3,16 +3,23 @@
 #include <stdlib.h>
 #include <time.h>
 #include <pthread.h>
+#include <signal.h>
 #include <unistd.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <stropts.h>
+#include <sys/ioctl.h>
+#include <netdb.h>
 
 #define HTTPREQSIZE 4096
 #define KEEPALIVE_TIMEOUT 10 // seconds
 #define SERVER_NAME "stupid-sexy-server"
 
 struct threadhandle{
+	pthread_t h;
 	struct threadhandle *next;
 };
 struct threaddata{
@@ -22,7 +29,8 @@ struct threaddata{
 };
 
 int doublenewline(unsigned char*,int);
-void serve(void*);
-void newconn(struct threadhandle**,HANDLE,int*,int,struct sockaddr_in6*);
-void cleanhandles(struct threadhandle**);
-BOOL WINAPI handler(DWORD);
+void *serve(void*);
+void newconn(struct threadhandle**,pthread_mutex_t,int*,int,struct sockaddr_in6*);
+void joinall(struct threadhandle**);
+int closeconnections(pthread_mutex_t,int*);
+void signalcatcher(int);

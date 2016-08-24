@@ -1,11 +1,13 @@
 #include "httpserver.h"
 
+int controlc=0; // set by control-c handler
+
 void usage(char **argv){
 	fprintf(stderr,"Usage: %s [-p port] [-d dir]\n-p: The port that %s should listen on (default: 80)\n-d: The root directory to serve files from (default: \".\\root\")\n",argv[0],argv[0]);
 	exit(1);
 }
 int main(int argc,char **argv){
-	int scan,sock=INVALID_SOCKET,abortthread=0;
+	int scan,sock=-1,abortthread=0;
 	struct sockaddr_in6 scanaddr,sockaddr;
 	int len=sizeof(struct sockaddr_in6),stop;
 	unsigned short port=80;
@@ -38,6 +40,8 @@ int main(int argc,char **argv){
 		puts("Error: need root directory");
 		return 1;
 	}
+
+	signal(SIGINT,signalcatcher); // register signal catcher to catch control-c
 	
 	memset(&scanaddr,0,sizeof(struct sockaddr_in6));
 	scanaddr.sin6_family=AF_INET6;
@@ -49,7 +53,7 @@ int main(int argc,char **argv){
 	/*if(setsockopt(scan,IPPROTO_IPV6,27,(char*)&mode,4))
 		printf("failed with error %d\n",WSAGetLastError());*/ //don't think this is needed on linux, all sockets are dual stack by default
 	if(bind(scan,(struct sockaddr*)&scanaddr,sizeof(struct sockaddr_in6))){
-		printf("Error: unable to bind to port %hu.\nMake sure no other server is running on that port.\nWSAE: %d",port,WSAGetLastError());
+		printf("Error: unable to bind to port %hu.\nMake sure no other server is running on that port.\nWSAE: %d",port,errno);
 		close(scan);
 		return 1;
 	}
@@ -57,20 +61,13 @@ int main(int argc,char **argv){
 	printf("[root dir: '%s' port: %hu -- ready]\n",rootdir,port);
 	for(;;){
 		stop=0;
-		sock=INVALID_SOCKET;
-		while(sock==INVALID_SOCKET){
+		sock=-1;
+		while(sock==-1){
 			usleep(30000); // 30 millis
-			/*if(_kbhit()){
-				char key=getch();
-				if(key==27){
-					stop=1;
-					break;
-				}
-				else if(key=='\r'){
-					system("cls");
-					printf("[root dir: '%s' port: %hu -- ready]\n",rootdir,port);
-				}
-			}*/
+			if(controlc){ // interrupt was received, need to exit
+				stop=1;
+				break;
+			}
 			sock=accept(scan,(struct sockaddr*)&sockaddr,&len);
 		}
 		if(stop)break;
@@ -81,7 +78,7 @@ int main(int argc,char **argv){
 	abortthread=1;
 	pthread_mutex_unlock(&mutex);
 	while(threadhandlehead!=NULL)joinall(&threadhandlehead); // wait for outstanding connections to finish up
-	socket(scan);
+	close(scan);
 	puts("Exiting...");
 	return 0;
 }
@@ -102,7 +99,7 @@ void joinall(struct threadhandle **threadhandlehead){
 }
 void newconn(struct threadhandle **threadhandlehead,pthread_mutex_t mutex,int *abortthread,int sock,struct sockaddr_in6 *sockaddr){
 	pthread_t h;
-	cleanhandles(threadhandlehead);
+	joinall(threadhandlehead);
 	struct threaddata *td=malloc(sizeof(struct threaddata));
 	td->sock=sock;
 	td->sockaddr=*sockaddr;
@@ -127,4 +124,8 @@ int doublenewline(unsigned char *data,int len){
 		if(data[i]=='\n'&&data[i-1]=='\r'&&data[i-2]=='\n'&&data[i-3]=='\r')
 			return 1;
 	return 0;
+}
+void signalcatcher(int sig){
+	fprintf(stderr,"\n----- Interrupt received\n");
+	controlc=1;
 }

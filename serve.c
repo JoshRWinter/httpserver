@@ -11,10 +11,10 @@ char *getcurrenttime(char *currenttime,pthread_mutex_t mutex){
 	return currenttime;
 }
 int is_directory(const char *path) {
-   struct stat stat;
-   if (stat(path, &stat)!=0)
+   struct stat statbuf;
+   if (stat(path,&statbuf)!=0)
        return 0;
-   return S_ISDIR(stat.st_mode);
+   return S_ISDIR(statbuf.st_mode);
 }
 FILE *openresource(int sock,pthread_mutex_t mutex,char *resource,char **code,char *connectto){ // resolve resource name
 	int i;
@@ -78,8 +78,8 @@ void getcontenttype(char *resource,char **contenttype){
 	else if(!strcmp(ext,"mp4"))*contenttype="video/mp4";
 	else *contenttype="application/octet-stream";
 }
-serve serve(void *p){
-	char httprequest[HTTPREQSIZE],*contenttype,*path,resource[MAX_PATH],*proto,*code,*connectto,currenttime[26],response[4096],resdata[4096],connecteraddress[47];
+void* serve(void *p){
+	char httprequest[HTTPREQSIZE],*contenttype,*path,resource[255],*proto,*code,*connectto,currenttime[26],response[4096],resdata[4096],connecteraddress[47];
 	u_long mode=0;
 	int reslen,result,i,sock;
 	struct sockaddr_in6 sockaddr;
@@ -109,9 +109,9 @@ serve serve(void *p){
 		memset(httprequest,0,HTTPREQSIZE);
 		bytestr=0;
 		mode=1;
-		if(SOCKET_ERROR==ioctl(sock,FIONBIO,&mode))printf("last error: %d",errno);
+		if(-1==ioctl(sock,FIONBIO,&mode))printf("last error: %d",errno);
 		while(!doublenewline(httprequest,bytestr)){
-			uleep(2000);
+			usleep(2000);
 			if(time(NULL)-initialtime>KEEPALIVE_TIMEOUT||closeconnections(mutex,abortthread)){
 				printf("[%s - %s] Keepalive timeout\n",connectto,getcurrenttime(currenttime,mutex));
 				stop=1;
@@ -122,13 +122,13 @@ serve serve(void *p){
 			else if(result==0){
 				printf("[%s - %s] Network error receiving http request: %d\n",connectto,getcurrenttime(currenttime,mutex),errno);
 				close(sock);
-				return;
+				return NULL;
 			}
 		}
 		if(stop)break;
 		initialtime=time(NULL);
 		mode=0;
-		if(SOCKET_ERROR==ioctl(sock,FIONBIO,&mode))printf("last error: %d",errno);
+		if(-1==ioctl(sock,FIONBIO,&mode))printf("last error: %d",errno);
 		
 		path=httprequest+5; // separate out path (resource);
 		for(i=0;;++i){
@@ -160,7 +160,7 @@ serve serve(void *p){
 			if(result<0){
 				printf("[%s - %s] Network error serving length of %s: %d",connectto,getcurrenttime(currenttime,mutex),res,errno);
 				close(sock);
-				return;
+				return NULL;
 			}
 			bytestr+=result;
 		}
@@ -177,7 +177,7 @@ serve serve(void *p){
 						fclose(res);
 						printf("[%s - %s] Network error serving %s: %d\n",connectto,getcurrenttime(currenttime,mutex),res,errorcode);
 						close(sock);
-						return;
+						return NULL;
 					}
 				}
 				else bytestr+=result;
@@ -188,5 +188,5 @@ serve serve(void *p){
 	}
 	printf("[%s - %s] Disconnected\n",connectto,getcurrenttime(currenttime,mutex));
 	close(sock);
-	return;
+	return NULL;
 }
