@@ -1,5 +1,6 @@
 root
 httpserver.o
+httpserver
 httpserver.exe
 resource.res
 template.html
