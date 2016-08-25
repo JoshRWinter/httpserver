@@ -5,4 +5,4 @@ httpserver.o: httpserver.c httpserver.h
 serve.o: serve.c httpserver.h
 	gcc serve.c -c
 clean:
-	del httpserver serve.o httpserver.o
+	del serve.o httpserver.o

@@ -53,7 +53,7 @@ int main(int argc,char **argv){
 	/*if(setsockopt(scan,IPPROTO_IPV6,27,(char*)&mode,4))
 		printf("failed with error %d\n",WSAGetLastError());*/ //don't think this is needed on linux, all sockets are dual stack by default
 	if(bind(scan,(struct sockaddr*)&scanaddr,sizeof(struct sockaddr_in6))){
-		printf("Error: unable to bind to port %hu.\nMake sure no other server is running on that port.\nWSAE: %d",port,errno);
+		printf("Error: unable to bind to port %hu.\nMake sure no other server is running on that port.\n: %d",port,errno);
 		close(scan);
 		return 1;
 	}
@@ -64,7 +64,7 @@ int main(int argc,char **argv){
 		sock=-1;
 		while(sock==-1){
 			usleep(30000); // 30 millis
-			if(controlc){ // interrupt was received, need to exit
+			if(controlc){ // interrupt (SIGINT) was received, need to exit
 				stop=1;
 				break;
 			}
