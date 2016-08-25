@@ -79,9 +79,9 @@ void getcontenttype(char *resource,char **contenttype){
 	else *contenttype="application/octet-stream";
 }
 void* serve(void *p){
-	char httprequest[HTTPREQSIZE],*contenttype,*path,resource[255],*proto,*code,*connectto,currenttime[26],response[4096],resdata[4096],connecteraddress[47];
+	char httprequest[HTTPREQSIZE],*contenttype,*path,resource[255],*proto,*code,*connectto,currenttime[26],response[4096],*resdata,fixedresdata[4096],connecteraddress[47];
 	u_long mode=0;
-	int reslen,result,i,sock;
+	int reslen,result,i,sock,ishtml;
 	struct sockaddr_in6 sockaddr;
 	unsigned bytestr,responselen;
 	FILE *res;
@@ -149,16 +149,24 @@ void* serve(void *p){
 		strcpy(resource,path);
 		FILE *res=openresource(sock,mutex,resource,&code,connectto);
 		getcontenttype(resource,&contenttype);
-		fseek(res,0,SEEK_END);
-		reslen=ftell(res);
-		fseek(res,0,SEEK_SET);
+		if(!strcmp("text/html",contenttype)){ // gets treated differently, will try to look for server side includes
+			reslen=processhtml(&resdata,res);
+			ishtml=1;
+		}
+		else{
+			fseek(res,0,SEEK_END);
+			reslen=ftell(res);
+			fseek(res,0,SEEK_SET);
+			resdata=fixedresdata;
+			ishtml=0;
+		}
 		sprintf(response,"%s %s\r\nServer: "SERVER_NAME"\r\nContent-Type: %s\r\nContent-Length: %u\r\n\r\n",proto,code,contenttype,reslen);
 		responselen=strlen(response);
 		bytestr=0;
 		while(bytestr!=responselen){
 			result=send(sock,response+bytestr,responselen-bytestr,0);
 			if(result<0){
-				printf("[%s - %s] Network error serving length of %s: %d",connectto,getcurrenttime(currenttime,mutex),res,errno);
+				printf("[%s - %s] Network error serving length of %s: %d",connectto,getcurrenttime(currenttime,mutex),resource,errno);
 				close(sock);
 				return NULL;
 			}
@@ -167,7 +175,12 @@ void* serve(void *p){
 		bytestr=0;
 		while(!feof(res)){
 			int bytesread;
-			bytesread=fread(resdata,1,4096,res);
+			if(ishtml){
+				bytesread=reslen;
+			}
+			else{
+				bytesread=fread(resdata,1,4096,res);
+			}
 			bytestr=0;
 			while(bytestr!=bytesread){
 				result=send(sock,resdata+bytestr,bytesread-bytestr,0);
@@ -181,6 +194,10 @@ void* serve(void *p){
 					}
 				}
 				else bytestr+=result;
+			}
+			if(ishtml){
+				free(resdata);
+				break;
 			}
 		}
 		fclose(res);

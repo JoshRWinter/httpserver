@@ -16,7 +16,7 @@
 
 #define HTTPREQSIZE 4096
 #define KEEPALIVE_TIMEOUT 10 // seconds
-#define SERVER_NAME "stupid-sexy-server"
+#define SERVER_NAME "stupid-sexy-server" //seen in http response
 
 struct threadhandle{
 	pthread_t h;
@@ -29,6 +29,7 @@ struct threaddata{
 };
 
 int doublenewline(unsigned char*,int);
+int processhtml(char**,FILE*);
 void *serve(void*);
 void newconn(struct threadhandle**,pthread_mutex_t,int*,int,struct sockaddr_in6*);
 void joinall(struct threadhandle**);
