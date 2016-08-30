@@ -1,4 +1,5 @@
 #include "httpserver.h"
+#include <ctype.h>
 
 char *getcurrenttime(char *currenttime,pthread_mutex_t mutex){
 	pthread_mutex_lock(&mutex); // localtime() is NOT thread safe, must lock with mutexes
@@ -29,6 +30,10 @@ FILE *openresource(int sock,pthread_mutex_t mutex,char *resource,char **code,cha
 	else if(is_directory(resource)){ // is 'resource' a directory?
 		strcat(resource,"/index.html");
 	}
+
+	rlen=strlen(resource); // convert everything to lowercase
+	for(i=0;i<rlen;++i)
+		resource[i]=tolower(resource[i]);
 	
 	res=fopen(resource,"rb");
 	if(!res){
