@@ -7,4 +7,4 @@ serve.o: serve.c httpserver.h
 processhtml.o: processhtml.c httpserver.h
 	gcc processhtml.c -c
 clean:
-	del serve.o httpserver.o
+	rm *.o
