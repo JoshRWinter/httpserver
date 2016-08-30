@@ -23,10 +23,7 @@ FILE *openresource(int sock,pthread_mutex_t mutex,char *resource,char **code,cha
 	int foundperiod=0;
 	char currenttime[26];
 	
-	if(strstr(resource,"..")||strstr(resource,":")||strstr(resource,"%"))strcpy(resource,"lalalala"); // bad stuff
-	
-	rlen=strlen(resource);
-	for(i=0;i<rlen;++i)if(resource[i]=='/')resource[i]='\\'; // windows slashes
+	if(strstr(resource,"..")||strstr(resource,":")||strstr(resource,"%")||strstr(resource,"$"))strcpy(resource,"lalalala"); // bad stuff
 	
 	if(!strcmp(resource,""))strcpy(resource,"index.html");
 	else if(is_directory(resource)){ // is 'resource' a directory?
@@ -131,6 +128,8 @@ void* serve(void *p){
 		if(-1==ioctl(sock,FIONBIO,&mode))printf("last error: %d",errno);
 		
 		path=httprequest+5; // separate out path (resource);
+		// get rid of preceding slashes
+		while(path[0]=='/'||path[0]=='\\')++path;
 		for(i=0;;++i){
 			if(path[i]==' '){
 				path[i]=0;
