@@ -3,7 +3,7 @@
 int controlc=0; // set by control-c handler
 
 void usage(char **argv){
-	fprintf(stderr,"Usage: %s [-p port] [-d dir]\n-p: The port that %s should listen on (default: 80)\n-d: The root directory to serve files from (default: \".\\root\")\n",argv[0],argv[0]);
+	fprintf(stderr,"Usage: %s [-p port] [-d dir]\n-p: The port that %s should listen on (default: 80)\n-d: The root directory to serve files from (default: \"./root\")\n",argv[0],argv[0]);
 	exit(1);
 }
 int main(int argc,char **argv){
