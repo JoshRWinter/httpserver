@@ -3,7 +3,7 @@
 int controlc=0; // set by control-c handler
 
 void usage(char **argv){
-	fprintf(stderr,"Usage: %s [-p port] [-d dir]\n-p: The port that %s should listen on (default: 80)\n-d: The root directory to serve files from (default: \"./root\")\n",argv[0],argv[0]);
+	printf("Usage: %s [-p port] [-d dir] [-f]\n-p: The port that %s should listen on (default: 80)\n-d: The root directory to serve files from (default: \"./root\")\n-b: detach from the controlling terminal (daemonize)\n    stdout will be redirected to ~/httplog.txt\n",argv[0],argv[0]);
 	exit(1);
 }
 int main(int argc,char **argv){
@@ -16,9 +16,10 @@ int main(int argc,char **argv){
 	struct threadhandle *threadhandlehead=NULL;
 	pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER;
 	char **oldargv=argv;
+	char logpath[1024];
 	
 	// parse cmd line args
-	while((option=getopt(argc,argv,"p:d:h"))!=-1){
+	while((option=getopt(argc,argv,"p:d:hb"))!=-1){
 		switch(option){
 			case 'p':
 				if(1!=sscanf(optarg,"%hu",&port)){
@@ -34,10 +35,17 @@ int main(int argc,char **argv){
 			case 'h':
 				usage(oldargv);
 				break;
+			case 'b': // run in background
+				if(fork())return 0;
+				strcpy(logpath,getenv("HOME"));
+				strcat(logpath,"/httplog.txt");
+				fprintf(stderr,"%s\n",logpath);
+				freopen(logpath,"w",stdout);
+				break;
 		}
 	}
 	if(chdir(rootdir)){
-		puts("Error: need root directory");
+		fprintf(stderr,"Error: need root directory\n");
 		return 1;
 	}
 
@@ -53,11 +61,12 @@ int main(int argc,char **argv){
 	/*if(setsockopt(scan,IPPROTO_IPV6,27,(char*)&mode,4))
 		printf("failed with error %d\n",WSAGetLastError());*/ //don't think this is needed on linux, all sockets are dual stack by default
 	if(bind(scan,(struct sockaddr*)&scanaddr,sizeof(struct sockaddr_in6))){
-		printf("Error: unable to bind to port %hu.\nMake sure no other server is running on that port. E: %d\n",port,errno);
+		fprintf(stderr,"Error: unable to bind to port %hu.\nMake sure no other server is running on that port. E: %d\n",port,errno);
 		close(scan);
 		return 1;
 	}
 	listen(scan,100);
+
 	printf("[root dir: '%s' port: %hu -- ready]\n",rootdir,port);
 	for(;;){
 		stop=0;
@@ -126,6 +135,6 @@ int doublenewline(unsigned char *data,int len){
 	return 0;
 }
 void signalcatcher(int sig){
-	fprintf(stderr,"\n----- Interrupt received\n");
+	printf("\n----- Interrupt received\n");
 	controlc=1;
 }
