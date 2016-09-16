@@ -1,7 +1,7 @@
 #include "httpserver.h"
 
 static void *fill_error(char **resourcedata,int *len){
-	char *errorstring="<html><head><title>Internal server error</title></head><body><p>Internal server error</p></body></html>";
+	char *errorstring="<!Doctype html>\n<html><head><title>Internal server error</title></head><body><p>Internal server error</p></body></html>";
 	*len=strlen(errorstring);
 	*resourcedata=malloc(*len);
 	memcpy(*resourcedata,errorstring,*len);
