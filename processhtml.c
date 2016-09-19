@@ -50,7 +50,8 @@ int processhtml(char **resourcedata,FILE *res){
 		bookmark=includepos;
 
 		// copy server side include string into proper c string
-		char path[1025];
+		char real_path[1025];
+		char *path=real_path;
 		int pathindex=0;
 		int pathpos=includepos+4;
 		while(pathindex<1024&&pathpos<filedatalen&&filedata[pathpos]!='\n'){
@@ -61,6 +62,12 @@ int processhtml(char **resourcedata,FILE *res){
 		path[pathindex]=0;
 
 		bookmark+=strlen(path)+4; // plus 4 to get rid of the "####"
+
+		// strip any leading slashes off include
+		while(path[0]=='/'||path[0]=='\\')++path;
+
+		//check for bad stuff
+		if(strstr(path,"..")||strstr(path,"$")||strstr(path,":")||strstr(path,"%"))strcpy(path,"lol");
 
 		// now try to load server side include file that now exists in "path"
 		FILE *includefile=fopen(path,"rb");
