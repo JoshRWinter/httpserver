@@ -42,9 +42,12 @@ FILE *openresource(int sock,pthread_mutex_t mutex,char *resource,char **code,cha
 		strcpy(resource,"404page.html");
 		res=fopen(resource,"rb");
 		if(!res){
-			printf("[%s - %s] Error: can't find '404page.html' -- disconnected\n",connectto,getcurrenttime(currenttime,mutex));
-			close(sock);
-			pthread_cancel(pthread_self());
+			// create an empty 404page.html
+			FILE *file=fopen("404page.html","w");
+			char *notfound="<!Doctype html>\n<html><head><title>404</title></head><body><h2>404 Page Not Found</h2></body></html>";
+			fwrite(notfound,sizeof(char),strlen(notfound),file);
+			fclose(file);
+			return fopen("404page.html","rb");
 		}
 	}
 	else{
