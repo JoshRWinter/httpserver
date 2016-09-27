@@ -50,7 +50,9 @@ int main(int argc,char **argv){
 	}
 
 	signal(SIGINT,signalcatcher); // register signal catcher to catch control-c
-	signal(SIGPIPE,sigpipetrap);
+	signal(SIGHUP,signalcatcher); // register signal catcher to catch SIGHUP
+	signal(SIGTERM,signalcatcher); // register signal catcher to catch SIGTERM
+	signal(SIGPIPE,sigpipetrap); // register signal catcher to catch SIGPIPE
 	
 	memset(&scanaddr,0,sizeof(struct sockaddr_in6));
 	scanaddr.sin6_family=AF_INET6;
