@@ -50,6 +50,7 @@ int main(int argc,char **argv){
 	}
 
 	signal(SIGINT,signalcatcher); // register signal catcher to catch control-c
+	signal(SIGPIPE,sigpipetrap);
 	
 	memset(&scanaddr,0,sizeof(struct sockaddr_in6));
 	scanaddr.sin6_family=AF_INET6;
@@ -141,4 +142,7 @@ int doublenewline(unsigned char *data,int len){
 void signalcatcher(int sig){
 	printf("\n----- Interrupt received\n");
 	controlc=1;
+}
+void sigpipetrap(int sig){
+	fprintf(stderr,"----------- ERR SIGPIPE\n");
 }

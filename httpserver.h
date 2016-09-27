@@ -36,3 +36,4 @@ void newconn(struct threadhandle**,pthread_mutex_t,int*,int,struct sockaddr_in6*
 void joinall(struct threadhandle**);
 int closeconnections(pthread_mutex_t,int*);
 void signalcatcher(int);
+void sigpipetrap(int);
