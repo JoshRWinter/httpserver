@@ -23,6 +23,7 @@ struct threadhandle{
 	struct threadhandle *next;
 };
 struct threaddata{
+	int sesh;
 	int sock,*abortthread;
 	struct sockaddr_in6 sockaddr;
 	pthread_mutex_t mutex;

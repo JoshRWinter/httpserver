@@ -107,9 +107,13 @@ void joinall(struct threadhandle **threadhandlehead){
 	}
 }
 void newconn(struct threadhandle **threadhandlehead,pthread_mutex_t mutex,int *abortthread,int sock,struct sockaddr_in6 *sockaddr){
+	static int sesh=100; // session id
 	pthread_t h;
 	joinall(threadhandlehead);
 	struct threaddata *td=malloc(sizeof(struct threaddata));
+	td->sesh=sesh;
+	sesh++;
+	if(sesh>1000000)sesh=100;
 	td->sock=sock;
 	td->sockaddr=*sockaddr;
 	td->mutex=mutex;

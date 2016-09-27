@@ -17,7 +17,7 @@ int is_directory(const char *path) {
        return 0;
    return S_ISDIR(statbuf.st_mode);
 }
-FILE *openresource(int sock,pthread_mutex_t mutex,char *resource,char **code,char *connectto){ // resolve resource name
+FILE *openresource(int sock,pthread_mutex_t mutex,char *resource,char **code,char *connectto,int sesh){ // resolve resource name
 	int i;
 	FILE *res;
 	int rlen;
@@ -38,7 +38,7 @@ FILE *openresource(int sock,pthread_mutex_t mutex,char *resource,char **code,cha
 	res=fopen(resource,"rb");
 	if(!res){
 		*code="404 Not Found";
-		printf("[%s - %s] Requested entity not found: %s\n",connectto,getcurrenttime(currenttime,mutex),resource);
+		printf("[%s (%d) - %s] Requested entity not found: %s\n",connectto,sesh,getcurrenttime(currenttime,mutex),resource);
 		strcpy(resource,"404page.html");
 		res=fopen(resource,"rb");
 		if(!res){
@@ -51,7 +51,7 @@ FILE *openresource(int sock,pthread_mutex_t mutex,char *resource,char **code,cha
 		}
 	}
 	else{
-		printf("[%s - %s] Requested entity: %s\n",connectto,getcurrenttime(currenttime,mutex),resource);
+		printf("[%s (%d) - %s] Requested entity: %s\n",connectto,sesh,getcurrenttime(currenttime,mutex),resource);
 		*code="200 OK";
 	}
 	return res;
@@ -93,9 +93,11 @@ void* serve(void *p){
 	int initialtime;
 	pthread_mutex_t mutex;
 	int *abortthread;
+	int sesh;
 	
 	struct threaddata *td=p;
 	sock=td->sock;
+	sesh=td->sesh;
 	sockaddr=td->sockaddr;
 	mutex=td->mutex;
 	abortthread=td->abortthread;
@@ -107,7 +109,7 @@ void* serve(void *p){
 	else{ // ipv6 addr
 		connectto=connecteraddress;
 	}
-	printf("[%s - %s] Connected\n",connectto,getcurrenttime(currenttime,mutex));
+	printf("[%s (%d) - %s] Connected\n",connectto,sesh,getcurrenttime(currenttime,mutex));
 	initialtime=time(NULL);
 	for(;;){
 		int stop=0;
@@ -118,14 +120,14 @@ void* serve(void *p){
 		while(!doublenewline(httprequest,bytestr)){
 			usleep(2000);
 			if(time(NULL)-initialtime>KEEPALIVE_TIMEOUT||closeconnections(mutex,abortthread)){
-				printf("[%s - %s] Keepalive timeout\n",connectto,getcurrenttime(currenttime,mutex));
+				printf("[%s (%d) - %s] Keepalive timeout\n",connectto,sesh,getcurrenttime(currenttime,mutex));
 				stop=1;
 				break;
 			}
 			result=recv(sock,httprequest+bytestr,HTTPREQSIZE-bytestr,0);
 			if(result>0)bytestr+=result;
 			else if(result==0){
-				printf("[%s - %s] Network error receiving http request: %d\n",connectto,getcurrenttime(currenttime,mutex),errno);
+				printf("[%s (%d) - %s] Network error receiving http request: %d\n",connectto,sesh,getcurrenttime(currenttime,mutex),errno);
 				close(sock);
 				return NULL;
 			}
@@ -154,7 +156,7 @@ void* serve(void *p){
 		}
 		
 		strcpy(resource,path);
-		FILE *res=openresource(sock,mutex,resource,&code,connectto);
+		FILE *res=openresource(sock,mutex,resource,&code,connectto,sesh);
 		getcontenttype(resource,&contenttype);
 		if(!strcmp("text/html",contenttype)){ // gets treated differently, will try to look for server side includes
 			reslen=processhtml(&resdata,res);
@@ -173,7 +175,7 @@ void* serve(void *p){
 		while(bytestr!=responselen){
 			result=send(sock,response+bytestr,responselen-bytestr,0);
 			if(result<0){
-				printf("[%s - %s] Network error serving length of %s: %d",connectto,getcurrenttime(currenttime,mutex),resource,errno);
+				printf("[%s (%d) - %s] Network error serving length of %s: %d",connectto,sesh,getcurrenttime(currenttime,mutex),resource,errno);
 				close(sock);
 				return NULL;
 			}
@@ -195,7 +197,7 @@ void* serve(void *p){
 					int errorcode;
 					if(errno!=EWOULDBLOCK){
 						fclose(res);
-						printf("[%s - %s] Network error serving %s: %d\n",connectto,getcurrenttime(currenttime,mutex),res,errorcode);
+						printf("[%s (%d) - %s] Network error serving %s: %d\n",connectto,sesh,getcurrenttime(currenttime,mutex),res,errorcode);
 						close(sock);
 						return NULL;
 					}
@@ -208,9 +210,9 @@ void* serve(void *p){
 			}
 		}
 		fclose(res);
-		printf("[%s - %s] Served %s (%s) (%u)\n",connectto,getcurrenttime(currenttime,mutex),resource,contenttype,reslen);
+		printf("[%s (%d) - %s] Served %s (%s) (%u)\n",connectto,sesh,getcurrenttime(currenttime,mutex),resource,contenttype,reslen);
 	}
-	printf("[%s - %s] Disconnected\n",connectto,getcurrenttime(currenttime,mutex));
+	printf("[%s (%d) - %s] Disconnected\n",connectto,sesh,getcurrenttime(currenttime,mutex));
 	close(sock);
 	return NULL;
 }
