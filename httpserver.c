@@ -3,7 +3,7 @@
 int controlc=0; // set by control-c handler
 
 void usage(char **argv){
-	printf("Usage: %s [-p port] [-d dir] [-f]\n-p: The port that %s should listen on (default: 80)\n-d: The root directory to serve files from (default: \"./root\")\n-b: detach from the controlling terminal (daemonize)\n    stdout will be redirected to ~/httplog.txt\n",argv[0],argv[0]);
+	printf("Usage: %s [-p <port>] [-d <dir>] [-b] [-u <uid>]\n-p <port>: The port that %s should listen on (default: 80)\n-d <dir>: The root directory to serve files from (default: \"./root\")\n-b: detach from the controlling terminal (daemonize)\n    stdout will be redirected to ~/httplog.txt\n-u <uid>: set the euid (useful for dropping priveledges after\n    binding to port 80)\n",argv[0],argv[0]);
 	exit(1);
 }
 int main(int argc,char **argv){
@@ -17,9 +17,10 @@ int main(int argc,char **argv){
 	pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER;
 	char **oldargv=argv;
 	char logpath[1024];
+	int euid=-1;
 	
 	// parse cmd line args
-	while((option=getopt(argc,argv,"p:d:hb"))!=-1){
+	while((option=getopt(argc,argv,"p:d:u:hb"))!=-1){
 		switch(option){
 			case 'p':
 				if(1!=sscanf(optarg,"%hu",&port)){
@@ -41,6 +42,10 @@ int main(int argc,char **argv){
 				strcat(logpath,"/httplog.txt");
 				fprintf(stderr,"%s\n",logpath);
 				freopen(logpath,"w",stdout);
+				break;
+			case 'u':
+				if(sscanf(optarg,"%d",&euid)!=1)
+					usage(oldargv);
 				break;
 		}
 	}
@@ -69,6 +74,13 @@ int main(int argc,char **argv){
 		return 1;
 	}
 	listen(scan,100);
+
+	// set euid if -u option was received
+	if(euid!=-1&&seteuid(euid)){
+		fprintf(stderr,"Error: could not set euid %d -- errno %d\n",euid,errno);
+		close(scan);
+		return 1;
+	}
 
 	printf("[root dir: '%s' port: %hu -- ready]\n",rootdir,port);
 	for(;;){
