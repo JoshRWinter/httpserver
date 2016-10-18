@@ -197,7 +197,7 @@ void* serve(void *p){
 					int errorcode;
 					if(errno!=EWOULDBLOCK){
 						fclose(res);
-						printf("[%s (%d) - %s] Network error serving %s: %d\n",connectto,sesh,getcurrenttime(currenttime,mutex),res,errorcode);
+						printf("[%s (%d) - %s] Network error serving %s: %d\n",connectto,sesh,getcurrenttime(currenttime,mutex),resource,errorcode);
 						close(sock);
 						return NULL;
 					}
