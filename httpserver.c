@@ -18,7 +18,7 @@ int main(int argc,char **argv){
 	char **oldargv=argv;
 	char logpath[1024];
 	int euid=-1;
-	
+
 	// parse cmd line args
 	while((option=getopt(argc,argv,"p:d:u:hb"))!=-1){
 		switch(option){
@@ -58,7 +58,7 @@ int main(int argc,char **argv){
 	signal(SIGHUP,signalcatcher); // register signal catcher to catch SIGHUP
 	signal(SIGTERM,signalcatcher); // register signal catcher to catch SIGTERM
 	signal(SIGPIPE,sigpipetrap); // register signal catcher to catch SIGPIPE
-	
+
 	memset(&scanaddr,0,sizeof(struct sockaddr_in6));
 	scanaddr.sin6_family=AF_INET6;
 	scanaddr.sin6_port=htons(port);
@@ -148,9 +148,14 @@ int closeconnections(pthread_mutex_t mutex,int *abortthread){
 }
 int doublenewline(unsigned char *data,int len){
 	int i;
-	for(i=3;i<len;++i) // search for "r\n\r\n"
+	for(i=3;i<len;++i){
+		 // search for "r\n\r\n"
 		if(data[i]=='\n'&&data[i-1]=='\r'&&data[i-2]=='\n'&&data[i-3]=='\r')
 			return 1;
+		// search for \n\n
+		else if(data[i]=='\n'&&data[i-1]=='\n')
+			return 1;
+	}
 	return 0;
 }
 void signalcatcher(int sig){

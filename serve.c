@@ -23,9 +23,9 @@ FILE *openresource(int sock,pthread_mutex_t mutex,char *resource,char **code,cha
 	int rlen;
 	int foundperiod=0;
 	char currenttime[26];
-	
+
 	if(strstr(resource,"..")||strstr(resource,":")||strstr(resource,"%")||strstr(resource,"$"))strcpy(resource,"lalalala"); // bad stuff
-	
+
 	if(!strcmp(resource,""))strcpy(resource,"index.html");
 	else if(is_directory(resource)){ // is 'resource' a directory?
 		strcat(resource,"/index.html");
@@ -34,7 +34,7 @@ FILE *openresource(int sock,pthread_mutex_t mutex,char *resource,char **code,cha
 	rlen=strlen(resource); // convert everything to lowercase
 	for(i=0;i<rlen;++i)
 		resource[i]=tolower(resource[i]);
-	
+
 	res=fopen(resource,"rb");
 	if(!res){
 		*code="404 Not Found";
@@ -94,7 +94,7 @@ void* serve(void *p){
 	pthread_mutex_t mutex;
 	int *abortthread;
 	int sesh;
-	
+
 	struct threaddata *td=p;
 	sock=td->sock;
 	sesh=td->sesh;
@@ -136,7 +136,7 @@ void* serve(void *p){
 		initialtime=time(NULL);
 		mode=0;
 		if(-1==ioctl(sock,FIONBIO,&mode))printf("last error: %d",errno);
-		
+
 		path=httprequest+5; // separate out path (resource);
 		// get rid of preceding slashes
 		while(path[0]=='/'||path[0]=='\\')++path;
@@ -146,7 +146,7 @@ void* serve(void *p){
 				break;
 			}
 		}
-		
+
 		proto=httprequest+strlen(httprequest)+1; // separate out proto ('HTTP/1.1' or 'HTTP/1.0' or other)
 		for(i=0;;++i){
 			if(proto[i]=='\r'){
@@ -154,7 +154,7 @@ void* serve(void *p){
 				break;
 			}
 		}
-		
+
 		strcpy(resource,path);
 		FILE *res=openresource(sock,mutex,resource,&code,connectto,sesh);
 		getcontenttype(resource,&contenttype);
