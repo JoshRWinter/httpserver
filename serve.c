@@ -137,6 +137,23 @@ void* serve(void *p){
 		mode=0;
 		if(-1==ioctl(sock,FIONBIO,&mode))printf("last error: %d",errno);
 
+		if(httprequest[0] != 'G' || httprequest[1] != 'E' || httprequest[2] != 'T' || httprequest[3] != ' '){
+			// not implemented.
+			printf("[%s (%d) - %s] Not implemented\n",connectto,sesh,getcurrenttime(currenttime,mutex));
+			char *ni = "501 Not Implemented\r\n\r\n";
+			bytestr=0;
+			while(bytestr!=strlen(ni)){
+				int result=send(sock,ni+bytestr,strlen(ni)-bytestr,0);
+				if(result<0){
+					printf("[%s (%d) - %s] Network error serving response: %d\n",connectto,sesh,getcurrenttime(currenttime,mutex),errno);
+					close(sock);
+					return NULL;
+				}
+				bytestr+=result;
+			}
+			break;
+		}
+
 		path=httprequest+5; // separate out path (resource);
 		// get rid of preceding slashes
 		while(path[0]=='/'||path[0]=='\\')++path;

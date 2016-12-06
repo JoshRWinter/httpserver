@@ -102,7 +102,8 @@ int main(int argc,char **argv){
 	abortthread=1;
 	pthread_mutex_unlock(&mutex);
 	while(threadhandlehead!=NULL)joinall(&threadhandlehead); // wait for outstanding connections to finish up
-	close(scan);
+	if(close(scan))
+		fprintf(stderr, "error: couldn't close socket: %d\n",errno);
 	puts("Exiting...");
 	return 0;
 }
