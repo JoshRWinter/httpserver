@@ -110,16 +110,11 @@ int main(int argc,char **argv){
 void joinall(struct threadhandle **threadhandlehead){
 	struct threadhandle *current=*threadhandlehead,*prev=NULL;
 	while(current!=NULL){
-		if(pthread_kill(current->h,0)!=0){ // if thread has finished
-			if(prev!=NULL)prev->next=current->next;
-			else *threadhandlehead=current->next;
-			struct threadhandle *temp=current->next;
-			free(current);
-			current=temp;
-			continue;
-		}
-		prev=current;
-		current=current->next;
+		pthread_join(current->h,NULL);
+		*threadhandlehead=current->next;
+		struct threadhandle *temp=current->next;
+		free(current);
+		current=temp;
 	}
 }
 void newconn(struct threadhandle **threadhandlehead,pthread_mutex_t mutex,int *abortthread,int sock,struct sockaddr_in6 *sockaddr){
