@@ -1,3 +1,5 @@
+*DEPRECATED* -- use "servant" instead https://bitbucket.org/joshrwinter/servant
+
 httpserver is an experimental simple http server. It can accept "GET" requests, making it acceptable to serve static web pages.
 It works on windows and linux, and is written in C, using the operating system's native APIs to accomplish its tasks.  
 NOTE: this software is not suitable for serving real web pages in a production environment, it is merely an educational tool useful for learing network programming in C.
